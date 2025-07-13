@@ -2,11 +2,12 @@ import json
 import os
 import random
 from datetime import datetime
+import pytz
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
 from apscheduler.schedulers.background import BackgroundScheduler
 
-BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
+BOT_TOKEN = "ضع_توكن_البوت_هنا"
 CHAT_ID = "-1002470716958"  # قناة أو جروب البوت
 ADMIN_ID = 1438736069  # فقط هذا المستخدم يقدر يغير الإعدادات
 SETTINGS_FILE = "settings.json"
@@ -24,8 +25,8 @@ default_settings = {
     "morning_time": "06:00",
     "evening_time": "18:00",
     "friday_reminder_time": "11:00",
-    "ayat_interval": 60,
-    "dua_interval": 120
+    "ayat_interval": 180,
+    "dua_interval": 240
 }
 
 # الأذكار
@@ -33,6 +34,9 @@ morning_azkar = ["سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", "
 evening_azkar = ["اللّهُـمَّ أَنْتَ رَبِّي لا إِلَهَ إِلَّا أَنْتَ", "أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ"]
 ayat = ["وَإِنَّكَ لَعَلَىٰ خُلُقٍ عَظِيمٍ", "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ"]
 duaas = ["اللهم إني أسألك العفو والعافية", "اللهم اجعلني من التوابين"]
+
+# تعريف توقيت الإسكندرية
+timezone = pytz.timezone("Africa/Cairo")
 
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
@@ -60,27 +64,27 @@ def send_evening(context: CallbackContext):
         send_with_image(context, f"🌙 {z}")
 
 def send_friday(context: CallbackContext):
-    if datetime.now().weekday() == 4:
+    if datetime.now(timezone).weekday() == 4:
         send_with_image(context, "📿 لا تنسَ سورة الكهف والصلاة على النبي ﷺ")
 
 def send_ayat(context: CallbackContext):
     verse = random.choice(ayat)
-    send_with_image(context, f"📖 آية: {verse}")
+    send_with_image(context, f"📖 آية:\n{verse}")
 
 def send_duaa(context: CallbackContext):
     dua = random.choice(duaas)
-    send_with_image(context, f"🤲 دعاء: {dua}")
+    send_with_image(context, f"🤲 دعاء:\n{dua}")
 
 def reschedule_jobs(job_queue):
     scheduler.remove_all_jobs()
     h, m = map(int, settings["morning_time"].split(":"))
-    scheduler.add_job(send_morning, 'cron', hour=h, minute=m)
+    scheduler.add_job(send_morning, 'cron', hour=h, minute=m, timezone=timezone)
 
     h, m = map(int, settings["evening_time"].split(":"))
-    scheduler.add_job(send_evening, 'cron', hour=h, minute=m)
+    scheduler.add_job(send_evening, 'cron', hour=h, minute=m, timezone=timezone)
 
     h, m = map(int, settings["friday_reminder_time"].split(":"))
-    scheduler.add_job(send_friday, 'cron', day_of_week='fri', hour=h, minute=m)
+    scheduler.add_job(send_friday, 'cron', day_of_week='fri', hour=h, minute=m, timezone=timezone)
 
     job_queue.run_repeating(send_ayat, interval=settings["ayat_interval"]*60, first=10)
     job_queue.run_repeating(send_duaa, interval=settings["dua_interval"]*60, first=20)
