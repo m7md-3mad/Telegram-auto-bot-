@@ -1,17 +1,17 @@
 import json
 import os
 import random
-from datetime import datetime, time
+from datetime import datetime
 import pytz
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
+from apscheduler.schedulers.background import BackgroundScheduler
 
-BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
-CHAT_ID = "-1002470716958"  # قناة أو جروب البوت
-ADMIN_ID = 1438736069  # فقط هذا المستخدم يقدر يغير الإعدادات
+BOT_TOKEN = "ضع_توكن_البوت_هنا"
+CHAT_ID = "-1002470716958"
+ADMIN_ID = 1438736069
 SETTINGS_FILE = "settings.json"
 
-# الصور
 images = [
     "https://i.imgur.com/9QZf5Qb.jpeg",
     "https://i.imgur.com/CQ5ELcC.jpeg",
@@ -19,22 +19,19 @@ images = [
     "https://i.imgur.com/rMBRfaM.jpeg",
 ]
 
-# الإعدادات الافتراضية
 default_settings = {
     "morning_time": "06:00",
     "evening_time": "18:00",
     "friday_reminder_time": "11:00",
-    "ayat_interval": 60,
-    "dua_interval": 120
+    "ayat_interval": 180,
+    "dua_interval": 240
 }
 
-# الأذكار
 morning_azkar = ["سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", "اللَّهُمَّ أَجِرْنِي مِنَ النَّارِ"]
 evening_azkar = ["اللّهُـمَّ أَنْتَ رَبِّي لا إِلَهَ إِلَّا أَنْتَ", "أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ"]
 ayat = ["وَإِنَّكَ لَعَلَىٰ خُلُقٍ عَظِيمٍ", "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ"]
 duaas = ["اللهم إني أسألك العفو والعافية", "اللهم اجعلني من التوابين"]
 
-# تعريف توقيت الإسكندرية
 timezone = pytz.timezone("Africa/Cairo")
 
 def load_settings():
@@ -47,8 +44,8 @@ def load_settings():
         return default_settings
 
 settings = load_settings()
+scheduler = BackgroundScheduler(timezone=timezone)
 
-# إرسال رسالة مع صورة
 def send_with_image(context: CallbackContext, text: str):
     img = random.choice(images)
     context.bot.send_photo(chat_id=CHAT_ID, photo=img, caption=text)
@@ -62,7 +59,6 @@ def send_evening(context: CallbackContext):
         send_with_image(context, f"🌙 {z}")
 
 def send_friday(context: CallbackContext):
-    # التأكد أن اليوم هو الجمعة
     if datetime.now(timezone).weekday() == 4:
         send_with_image(context, "📿 لا تنسَ سورة الكهف والصلاة على النبي ﷺ")
 
@@ -74,26 +70,20 @@ def send_duaa(context: CallbackContext):
     dua = random.choice(duaas)
     send_with_image(context, f"🤲 دعاء:\n{dua}")
 
-def reschedule_jobs(job_queue):
-    # إزالة الوظائف القديمة
-    for job in job_queue.get_jobs():
-        job.schedule_removal()
-
-    # جدولة الأذكار الصباحية
+def reschedule_jobs(updater):
+    scheduler.remove_all_jobs()
+    
     h, m = map(int, settings["morning_time"].split(":"))
-    job_queue.run_daily(send_morning, time=time(hour=h, minute=m, tzinfo=timezone))
+    scheduler.add_job(send_morning, 'cron', hour=h, minute=m, args=[updater.bot])
 
-    # جدولة الأذكار المسائية
     h, m = map(int, settings["evening_time"].split(":"))
-    job_queue.run_daily(send_evening, time=time(hour=h, minute=m, tzinfo=timezone))
+    scheduler.add_job(send_evening, 'cron', hour=h, minute=m, args=[updater.bot])
 
-    # تذكير الجمعة
     h, m = map(int, settings["friday_reminder_time"].split(":"))
-    job_queue.run_daily(send_friday, time=time(hour=h, minute=m, tzinfo=timezone), days=(4,))  # 4=Friday
+    scheduler.add_job(send_friday, 'cron', day_of_week='fri', hour=h, minute=m, args=[updater.bot])
 
-    # جدولة الآيات والدعاء بالتكرار حسب الفترات
-    job_queue.run_repeating(send_ayat, interval=settings["ayat_interval"] * 60, first=10)
-    job_queue.run_repeating(send_duaa, interval=settings["dua_interval"] * 60, first=20)
+    scheduler.add_job(send_ayat, 'interval', minutes=settings["ayat_interval"], args=[updater.bot], next_run_time=datetime.now())
+    scheduler.add_job(send_duaa, 'interval', minutes=settings["dua_interval"], args=[updater.bot], next_run_time=datetime.now())
 
 def start(update: Update, context: CallbackContext):
     update.message.reply_text("أهلاً بك في بوت الأذكار. استخدم /settime أو /duaa أو /verse")
@@ -114,14 +104,12 @@ def settime(update: Update, context: CallbackContext):
         if len(args) != 2:
             raise ValueError
 
-        # تحديث التوقيتات
         settings["morning_time"] = args[0]
         settings["evening_time"] = args[1]
-
         with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump(settings, f, ensure_ascii=False)
 
-        reschedule_jobs(context.job_queue)
+        reschedule_jobs(context.bot)
         update.message.reply_text("✅ تم تحديث التوقيتات بنجاح.")
     except:
         update.message.reply_text("❌ صيغة الأمر خاطئة. استخدم مثلًا:\n/settime 06:00 18:00")
@@ -135,8 +123,8 @@ def main():
     dp.add_handler(CommandHandler("duaa", duaa))
     dp.add_handler(CommandHandler("verse", verse))
 
-    # جدولة الوظائف
-    reschedule_jobs(updater.job_queue)
+    scheduler.start()
+    reschedule_jobs(updater)
 
     updater.start_polling()
     updater.idle()
