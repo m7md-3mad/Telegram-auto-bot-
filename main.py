@@ -6,13 +6,14 @@ from telegram import Update
 
 BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
 CHAT_ID = "-1002470716958"
+
 SETTINGS_FILE = "settings.json"
 
 default_settings = {
     "morning_time": "06:00",
     "evening_time": "18:00",
-    "ayat_interval": 120,  # بالدقائق
-    "dua_interval": 180    # بالدقائق
+    "ayat_interval": 120,
+    "dua_interval": 180
 }
 
 morning_azkar = [
@@ -30,15 +31,15 @@ evening_azkar = [
 ]
 
 ayat_list = [
-    "وَإِنَّكَ لَعَلَىٰ خُلُقٍ عَظِيمٍ (68)",
-    "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ (255)",
-    "وَمَا تَوْفِيقِي إِلَّا بِاللَّهِ (29)",
+    "📖 ﴿وَإِنَّكَ لَعَلَىٰ خُلُقٍ عَظِيمٍ﴾",
+    "📖 ﴿اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ﴾",
+    "📖 ﴿وَمَا تَوْفِيقِي إِلَّا بِاللَّهِ﴾"
 ]
 
 dua_list = [
-    "اللهم إني أسألك العفو والعافية في الدنيا والآخرة",
-    "اللهم اجعلني من التوابين واجعلني من المتطهرين",
-    "اللهم ارحمني واغفر لي وارزقني الخير حيثما كنت"
+    "🤲 اللهم إني أسألك العفو والعافية في الدنيا والآخرة",
+    "🤲 اللهم اجعلني من التوابين واجعلني من المتطهرين",
+    "🤲 اللهم ارحمني واغفر لي وارزقني الخير حيثما كنت"
 ]
 
 def load_settings():
@@ -64,72 +65,95 @@ def send_message(context: CallbackContext, text):
     context.bot.send_message(chat_id=CHAT_ID, text=text)
 
 def send_morning(context: CallbackContext):
-    for azkar in morning_azkar:
-        send_message(context, azkar)
+    for z in morning_azkar:
+        send_message(context, z)
 
 def send_evening(context: CallbackContext):
-    for azkar in evening_azkar:
-        send_message(context, azkar)
+    for z in evening_azkar:
+        send_message(context, z)
 
 def send_ayat(context: CallbackContext):
     ayat = ayat_list[datetime.now().minute % len(ayat_list)]
-    send_message(context, f"📖 آية:\n{ayat}")
+    send_message(context, ayat)
 
 def send_dua(context: CallbackContext):
     dua = dua_list[datetime.now().minute % len(dua_list)]
-    send_message(context, f"🤲 دعاء:\n{dua}")
+    send_message(context, dua)
 
 def reschedule_jobs(job_queue):
     job_queue.scheduler.remove_all_jobs()
-
     job_queue.run_daily(send_morning, parse_time(settings["morning_time"]))
     job_queue.run_daily(send_evening, parse_time(settings["evening_time"]))
-
-    job_queue.run_repeating(send_ayat, interval=settings["ayat_interval"]*60, first=10)
-    job_queue.run_repeating(send_dua, interval=settings["dua_interval"]*60, first=20)
-
-    print("[DEBUG] تم جدولة الوظائف.")
+    job_queue.run_repeating(send_ayat, interval=settings["ayat_interval"] * 60, first=10)
+    job_queue.run_repeating(send_dua, interval=settings["dua_interval"] * 60, first=20)
 
 def start(update: Update, context: CallbackContext):
     update.message.reply_text(
-        "أهلاً! هذا بوت الأذكار.\n"
-        "استخدم /activate لتشغيل الإرسال التلقائي.\n"
-        "استخدم /deactivate لإيقاف الإرسال.\n"
-        "استخدم /status لعرض الإعدادات الحالية."
+        "👋 أهلاً بك في بوت الأذكار.\n"
+        "/activate لتشغيل الإرسال التلقائي\n"
+        "/deactivate لإيقافه\n"
+        "/status لعرض الإعدادات\n"
+        "/set_morning HH:MM لتعديل وقت الصباح\n"
+        "/set_evening HH:MM لتعديل وقت المساء\n"
+        "/set_ayat_interval عدد_دقائق لتغيير معدل الآيات\n"
+        "/set_dua_interval عدد_دقائق لتغيير معدل الأدعية"
     )
 
 def activate(update: Update, context: CallbackContext):
     try:
-        context.job_queue.scheduler.remove_all_jobs()
         reschedule_jobs(context.job_queue)
         update.message.reply_text("✅ تم تفعيل الإرسال التلقائي.")
-        context.bot.send_message(chat_id=CHAT_ID, text="🟢 تم تفعيل الإرسال التلقائي بنجاح ✅")
     except Exception as e:
-        update.message.reply_text("❌ حدث خطأ أثناء التفعيل.")
-        print(f"[Activate Error]: {e}")
+        update.message.reply_text(f"❌ حدث خطأ أثناء التفعيل: {e}")
 
 def deactivate(update: Update, context: CallbackContext):
     context.job_queue.scheduler.remove_all_jobs()
     update.message.reply_text("⛔ تم إيقاف الإرسال التلقائي.")
 
 def status(update: Update, context: CallbackContext):
-    msg = (
-        "🧾 الإعدادات الحالية:\n"
-        f"🌅 أذكار الصباح: {settings.get('morning_time')}\n"
-        f"🌙 أذكار المساء: {settings.get('evening_time')}\n"
-        f"📖 آية كل: {settings.get('ayat_interval')} دقيقة\n"
-        f"🤲 دعاء كل: {settings.get('dua_interval')} دقيقة"
+    update.message.reply_text(
+        f"🌅 الصباح: {settings['morning_time']}\n"
+        f"🌙 المساء: {settings['evening_time']}\n"
+        f"📖 آية كل: {settings['ayat_interval']} دقيقة\n"
+        f"🤲 دعاء كل: {settings['dua_interval']} دقيقة"
     )
-    update.message.reply_text(msg)
+
+def set_morning(update: Update, context: CallbackContext):
+    if context.args:
+        settings["morning_time"] = context.args[0]
+        save_settings(settings)
+        update.message.reply_text(f"✅ تم تحديث وقت الصباح إلى {context.args[0]}.")
+
+def set_evening(update: Update, context: CallbackContext):
+    if context.args:
+        settings["evening_time"] = context.args[0]
+        save_settings(settings)
+        update.message.reply_text(f"✅ تم تحديث وقت المساء إلى {context.args[0]}.")
+
+def set_ayat_interval(update: Update, context: CallbackContext):
+    if context.args:
+        settings["ayat_interval"] = int(context.args[0])
+        save_settings(settings)
+        update.message.reply_text(f"✅ تم تحديث معدل إرسال الآيات إلى {context.args[0]} دقيقة.")
+
+def set_dua_interval(update: Update, context: CallbackContext):
+    if context.args:
+        settings["dua_interval"] = int(context.args[0])
+        save_settings(settings)
+        update.message.reply_text(f"✅ تم تحديث معدل إرسال الأدعية إلى {context.args[0]} دقيقة.")
 
 def main():
-    updater = Updater(BOT_TOKEN, use_context=True)
+    updater = Updater(BOT_TOKEN)
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("activate", activate))
     dp.add_handler(CommandHandler("deactivate", deactivate))
     dp.add_handler(CommandHandler("status", status))
+    dp.add_handler(CommandHandler("set_morning", set_morning))
+    dp.add_handler(CommandHandler("set_evening", set_evening))
+    dp.add_handler(CommandHandler("set_ayat_interval", set_ayat_interval))
+    dp.add_handler(CommandHandler("set_dua_interval", set_dua_interval))
 
     updater.start_polling()
     updater.idle()
