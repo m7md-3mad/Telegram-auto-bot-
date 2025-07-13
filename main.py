@@ -70,8 +70,7 @@ def send_friday(context: CallbackContext):
 
 def send_ayat(context: CallbackContext):
     verse = random.choice(ayat)
-    send_with_image(context, f"📖 آية:
-{verse}")
+    send_with_image(context, f"📖 آية:\n{verse}")
 
 
 def send_duaa(context: CallbackContext):
