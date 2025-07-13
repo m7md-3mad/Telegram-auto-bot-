@@ -7,7 +7,7 @@ from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
 from apscheduler.schedulers.background import BackgroundScheduler
 
-BOT_TOKEN = "ضع_توكن_البوت_هنا"
+BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
 CHAT_ID = "-1002470716958"
 ADMIN_ID = 1438736069
 SETTINGS_FILE = "settings.json"
@@ -23,8 +23,8 @@ default_settings = {
     "morning_time": "06:00",
     "evening_time": "18:00",
     "friday_reminder_time": "11:00",
-    "ayat_interval": 180,
-    "dua_interval": 240
+    "ayat_interval": 60,
+    "dua_interval": 120
 }
 
 morning_azkar = ["سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", "اللَّهُمَّ أَجِرْنِي مِنَ النَّارِ"]
