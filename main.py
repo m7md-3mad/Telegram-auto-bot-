@@ -2,8 +2,7 @@ import time
 import telegram
 
 BOT_TOKEN = "7674655190:AAEUxpXd5P-Z-SEzmo7qKnxXlyhnG9JcVqg"
-CHAT_ID = "1438736069"
-
+CHAT_ID = "-1002470716958"
 messages = [
     "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ",
     "اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ",
