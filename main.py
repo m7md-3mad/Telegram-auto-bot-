@@ -1,20 +1,18 @@
 import json
 import os
-import requests
-from datetime import datetime, time, timedelta
+from datetime import time, datetime
 from telegram.ext import Updater, CommandHandler, CallbackContext
 from telegram import Update
 
-BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
-CHAT_ID = "-1002470716958"
+BOT_TOKEN = "ضع_توكن_البوت_هنا"
+CHAT_ID = "-1002470716958"  # ID القناة أو الجروب
 SETTINGS_FILE = "settings.json"
 
 default_settings = {
     "morning_time": "06:00",
     "evening_time": "18:00",
-    "ayat_interval": 120,  # بالدقائق
-    "dua_interval": 180,   # بالدقائق
-    "prayer_alerts": True
+    "ayat_interval": 120,
+    "dua_interval": 180
 }
 
 morning_azkar = [
@@ -42,6 +40,14 @@ dua_list = [
     "اللهم اجعلني من التوابين واجعلني من المتطهرين",
     "اللهم ارحمني واغفر لي وارزقني الخير حيثما كنت"
 ]
+
+prayer_times = {
+    "الفجر": "03:42 ص",
+    "الظهر": "12:05 م",
+    "العصر": "03:45 م",
+    "المغرب": "06:58 م",
+    "العشاء": "08:27 م"
+}
 
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
@@ -81,76 +87,22 @@ def send_dua(context: CallbackContext):
     dua = dua_list[datetime.now().minute % len(dua_list)]
     send_message(context, f"🤲 دعاء:\n{dua}")
 
-def get_prayer_times():
-    url = "http://api.aladhan.com/v1/timingsByCity"
-    params = {
-        "city": "Alexandria",
-        "country": "Egypt",
-        "method": 5
-    }
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        data = response.json()
-        if data["code"] == 200:
-            return data["data"]["timings"]
-        else:
-            return None
-    except Exception as e:
-        print(f"Error getting prayer times: {e}")
-        return None
-
-def send_prayer_times(context: CallbackContext):
-    timings = get_prayer_times()
-    if timings:
-        msg = "🕌 مواقيت الصلاة اليوم في الإسكندرية:\n"
-        for prayer, t in timings.items():
-            if prayer in ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]:
-                msg += f"{prayer}: {t}\n"
-        send_message(context, msg)
-    else:
-        send_message(context, "❌ لم أتمكن من جلب مواقيت الصلاة اليوم.")
-
-def send_prayer_alert(context: CallbackContext):
-    job = context.job
-    send_message(context, f"🕋 تذكير: الصلاة {job.name} ستبدأ بعد 5 دقائق، استعد!")
-
-def schedule_prayer_alerts(job_queue):
-    timings = get_prayer_times()
-    if not timings:
-        return
-    # نصنع تنبيهات قبل الصلاة بـ5 دقائق
-    prayer_names = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]
-    for pname in prayer_names:
-        prayer_time_str = timings[pname]
-        prayer_time = datetime.strptime(prayer_time_str, "%H:%M").time()
-        alert_time = (datetime.combine(datetime.today(), prayer_time) - timedelta(minutes=5)).time()
-
-        # نتأكد التنبيه ما يكونش قبل الوقت الحالي
-        now = datetime.now().time()
-        if alert_time > now:
-            job_queue.run_daily(send_prayer_alert, alert_time, name=pname)
-
 def reschedule_jobs(job_queue):
     job_queue.scheduler.remove_all_jobs()
 
     job_queue.run_daily(send_morning, parse_time(settings["morning_time"]))
     job_queue.run_daily(send_evening, parse_time(settings["evening_time"]))
-
     job_queue.run_repeating(send_ayat, interval=settings["ayat_interval"]*60, first=10)
     job_queue.run_repeating(send_dua, interval=settings["dua_interval"]*60, first=20)
 
-    if settings.get("prayer_alerts", True):
-        # نرسل مواقيت الصلاة مرة في اليوم الصبح
-        job_queue.run_daily(send_prayer_times, time(7,0))
-        # نحدد التنبيهات قبل الصلاة
-        schedule_prayer_alerts(job_queue)
-
 def start(update: Update, context: CallbackContext):
     update.message.reply_text(
-        "أهلاً! هذا بوت الأذكار.\n"
+        "👋 مرحبًا بك في بوت الأذكار.\n"
         "استخدم /activate لتشغيل الإرسال التلقائي.\n"
         "استخدم /deactivate لإيقاف الإرسال.\n"
-        "استخدم /status لعرض الإعدادات الحالية."
+        "استخدم /status لعرض الإعدادات.\n"
+        "استخدم /settime لتغيير التوقيتات.\n"
+        "استخدم /prayer لعرض مواقيت الصلاة."
     )
 
 def activate(update: Update, context: CallbackContext):
@@ -158,7 +110,7 @@ def activate(update: Update, context: CallbackContext):
         reschedule_jobs(context.job_queue)
         update.message.reply_text("✅ تم تفعيل الإرسال التلقائي.")
     except Exception as e:
-        update.message.reply_text(f"حدث خطأ أثناء التفعيل: {e}")
+        update.message.reply_text(f"[Activate Error]: {e}")
 
 def deactivate(update: Update, context: CallbackContext):
     context.job_queue.scheduler.remove_all_jobs()
@@ -170,9 +122,50 @@ def status(update: Update, context: CallbackContext):
         f"🌅 أذكار الصباح: {settings.get('morning_time')}\n"
         f"🌙 أذكار المساء: {settings.get('evening_time')}\n"
         f"📖 آية كل: {settings.get('ayat_interval')} دقيقة\n"
-        f"🤲 دعاء كل: {settings.get('dua_interval')} دقيقة\n"
-        f"🕌 تنبيهات الصلاة: {'مفعلة' if settings.get('prayer_alerts', True) else 'معطلة'}"
+        f"🤲 دعاء كل: {settings.get('dua_interval')} دقيقة"
     )
+    update.message.reply_text(msg)
+
+def set_time(update: Update, context: CallbackContext):
+    if len(context.args) != 2:
+        update.message.reply_text("❌ الصيغة:\n/settime [النوع] [القيمة]\nمثال: /settime morning 06:30")
+        return
+
+    setting_type = context.args[0]
+    value = context.args[1]
+
+    valid_keys = {
+        "morning": "morning_time",
+        "evening": "evening_time",
+        "ayah": "ayat_interval",
+        "dua": "dua_interval"
+    }
+
+    if setting_type not in valid_keys:
+        update.message.reply_text("❌ الأنواع المتاحة: morning, evening, ayah, dua")
+        return
+
+    key = valid_keys[setting_type]
+
+    try:
+        if "time" in key:
+            datetime.strptime(value, "%H:%M")
+        else:
+            value = int(value)
+    except:
+        update.message.reply_text("❌ قيمة غير صحيحة.")
+        return
+
+    settings[key] = value
+    save_settings(settings)
+    reschedule_jobs(context.job_queue)
+
+    update.message.reply_text(f"✅ تم تحديث {setting_type} إلى {value}")
+
+def prayer(update: Update, context: CallbackContext):
+    msg = "🕌 مواقيت الصلاة في الإسكندرية:\n\n"
+    for name, time_ in prayer_times.items():
+        msg += f"{name}: {time_}\n"
     update.message.reply_text(msg)
 
 def main():
@@ -183,6 +176,8 @@ def main():
     dp.add_handler(CommandHandler("activate", activate))
     dp.add_handler(CommandHandler("deactivate", deactivate))
     dp.add_handler(CommandHandler("status", status))
+    dp.add_handler(CommandHandler("settime", set_time))
+    dp.add_handler(CommandHandler("prayer", prayer))
 
     updater.start_polling()
     updater.idle()
