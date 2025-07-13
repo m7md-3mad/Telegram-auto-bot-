@@ -1,186 +1,148 @@
 import json
 import os
-from datetime import time, datetime
-from telegram.ext import Updater, CommandHandler, CallbackContext
+import random
+from datetime import datetime, time
 from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
+from apscheduler.schedulers.background import BackgroundScheduler
 
 BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
-CHAT_ID = "-1002470716958"  # ID القناة أو الجروب
+CHAT_ID = "-1002470716958"  # قناة أو جروب البوت
+ADMIN_ID = 1438736069  # فقط هذا المستخدم يقدر يغير الإعدادات
 SETTINGS_FILE = "settings.json"
 
+# الصور
+images = [
+    "https://i.imgur.com/9QZf5Qb.jpeg",
+    "https://i.imgur.com/CQ5ELcC.jpeg",
+    "https://i.imgur.com/w1u45Bb.jpeg",
+    "https://i.imgur.com/rMBRfaM.jpeg",
+]
+
+# الإعدادات الافتراضية
 default_settings = {
     "morning_time": "06:00",
     "evening_time": "18:00",
-    "ayat_interval": 120,
-    "dua_interval": 180
+    "friday_reminder_time": "11:00",
+    "ayat_interval": 60,
+    "dua_interval": 120
 }
 
-morning_azkar = [
-    "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ",
-    "سُبْحَانَ اللَّهِ الْعَظِيمِ",
-    "اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ",
-    "لا حَوْلَ وَلا قُوَّةَ إِلَّا بِاللَّهِ"
-]
-
-evening_azkar = [
-    "اللّهُـمَّ أَنْتَ رَبِّي لا إِلَهَ إِلَّا أَنْتَ",
-    "خَلَقْتَنِي وَأَنَا عَبْدُكَ",
-    "وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ",
-    "أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ"
-]
-
-ayat_list = [
-    "وَإِنَّكَ لَعَلَىٰ خُلُقٍ عَظِيمٍ (68)",
-    "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ (255)",
-    "وَمَا تَوْفِيقِي إِلَّا بِاللَّهِ (29)",
-]
-
-dua_list = [
-    "اللهم إني أسألك العفو والعافية في الدنيا والآخرة",
-    "اللهم اجعلني من التوابين واجعلني من المتطهرين",
-    "اللهم ارحمني واغفر لي وارزقني الخير حيثما كنت"
-]
-
-prayer_times = {
-    "الفجر": "03:42 ص",
-    "الظهر": "12:05 م",
-    "العصر": "03:45 م",
-    "المغرب": "06:58 م",
-    "العشاء": "08:27 م"
-}
+# الأذكار
+morning_azkar = ["سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", "اللَّهُمَّ أَجِرْنِي مِنَ النَّارِ"]
+evening_azkar = ["اللّهُـمَّ أَنْتَ رَبِّي لا إِلَهَ إِلَّا أَنْتَ", "أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ"]
+ayat = ["وَإِنَّكَ لَعَلَىٰ خُلُقٍ عَظِيمٍ", "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ"]
+duaas = ["اللهم إني أسألك العفو والعافية", "اللهم اجعلني من التوابين"]
 
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+        with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
     else:
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(default_settings, f, ensure_ascii=False, indent=4)
-        return default_settings.copy()
-
-def save_settings(settings):
-    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(settings, f, ensure_ascii=False, indent=4)
+        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(default_settings, f, ensure_ascii=False)
+        return default_settings
 
 settings = load_settings()
+scheduler = BackgroundScheduler()
 
-def parse_time(tstr):
-    h, m = map(int, tstr.split(":"))
-    return time(h, m)
+# إرسال رسالة مع صورة
 
-def send_message(context: CallbackContext, text):
-    context.bot.send_message(chat_id=CHAT_ID, text=text)
+def send_with_image(context: CallbackContext, text: str):
+    img = random.choice(images)
+    context.bot.send_photo(chat_id=CHAT_ID, photo=img, caption=text)
+
 
 def send_morning(context: CallbackContext):
-    for azkar in morning_azkar:
-        send_message(context, azkar)
+    for z in morning_azkar:
+        send_with_image(context, f"🌅 {z}")
+
 
 def send_evening(context: CallbackContext):
-    for azkar in evening_azkar:
-        send_message(context, azkar)
+    for z in evening_azkar:
+        send_with_image(context, f"🌙 {z}")
+
+
+def send_friday(context: CallbackContext):
+    if datetime.now().weekday() == 4:
+        send_with_image(context, "📿 لا تنسَ سورة الكهف والصلاة على النبي ﷺ")
+
 
 def send_ayat(context: CallbackContext):
-    ayat = ayat_list[datetime.now().minute % len(ayat_list)]
-    send_message(context, f"📖 آية:\n{ayat}")
+    verse = random.choice(ayat)
+    send_with_image(context, f"📖 آية:
+{verse}")
 
-def send_dua(context: CallbackContext):
-    dua = dua_list[datetime.now().minute % len(dua_list)]
-    send_message(context, f"🤲 دعاء:\n{dua}")
+
+def send_duaa(context: CallbackContext):
+    dua = random.choice(duaas)
+    send_with_image(context, f"🤲 دعاء:
+{dua}")
+
 
 def reschedule_jobs(job_queue):
-    job_queue.scheduler.remove_all_jobs()
+    scheduler.remove_all_jobs()
+    h, m = map(int, settings["morning_time"].split(":"))
+    scheduler.add_job(send_morning, 'cron', hour=h, minute=m)
 
-    job_queue.run_daily(send_morning, parse_time(settings["morning_time"]))
-    job_queue.run_daily(send_evening, parse_time(settings["evening_time"]))
+    h, m = map(int, settings["evening_time"].split(":"))
+    scheduler.add_job(send_evening, 'cron', hour=h, minute=m)
+
+    h, m = map(int, settings["friday_reminder_time"].split(":"))
+    scheduler.add_job(send_friday, 'cron', day_of_week='fri', hour=h, minute=m)
+
     job_queue.run_repeating(send_ayat, interval=settings["ayat_interval"]*60, first=10)
-    job_queue.run_repeating(send_dua, interval=settings["dua_interval"]*60, first=20)
+    job_queue.run_repeating(send_duaa, interval=settings["dua_interval"]*60, first=20)
+
 
 def start(update: Update, context: CallbackContext):
-    update.message.reply_text(
-        "👋 مرحبًا بك في بوت الأذكار.\n"
-        "استخدم /activate لتشغيل الإرسال التلقائي.\n"
-        "استخدم /deactivate لإيقاف الإرسال.\n"
-        "استخدم /status لعرض الإعدادات.\n"
-        "استخدم /settime لتغيير التوقيتات.\n"
-        "استخدم /prayer لعرض مواقيت الصلاة."
-    )
+    update.message.reply_text("أهلاً بك في بوت الأذكار. استخدم /settime أو /duaa أو /verse")
 
-def activate(update: Update, context: CallbackContext):
+
+def duaa(update: Update, context: CallbackContext):
+    send_duaa(context)
+
+
+def verse(update: Update, context: CallbackContext):
+    send_ayat(context)
+
+
+def settime(update: Update, context: CallbackContext):
+    if update.effective_user.id != ADMIN_ID:
+        update.message.reply_text("❌ غير مصرح لك باستخدام هذا الأمر.")
+        return
+
     try:
+        args = context.args
+        if len(args) != 2:
+            raise ValueError
+
+        settings["morning_time"] = args[0]
+        settings["evening_time"] = args[1]
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(settings, f, ensure_ascii=False)
+
         reschedule_jobs(context.job_queue)
-        update.message.reply_text("✅ تم تفعيل الإرسال التلقائي.")
-    except Exception as e:
-        update.message.reply_text(f"[Activate Error]: {e}")
-
-def deactivate(update: Update, context: CallbackContext):
-    context.job_queue.scheduler.remove_all_jobs()
-    update.message.reply_text("⛔ تم إيقاف الإرسال التلقائي.")
-
-def status(update: Update, context: CallbackContext):
-    msg = (
-        "🧾 الإعدادات الحالية:\n"
-        f"🌅 أذكار الصباح: {settings.get('morning_time')}\n"
-        f"🌙 أذكار المساء: {settings.get('evening_time')}\n"
-        f"📖 آية كل: {settings.get('ayat_interval')} دقيقة\n"
-        f"🤲 دعاء كل: {settings.get('dua_interval')} دقيقة"
-    )
-    update.message.reply_text(msg)
-
-def set_time(update: Update, context: CallbackContext):
-    if len(context.args) != 2:
-        update.message.reply_text("❌ الصيغة:\n/settime [النوع] [القيمة]\nمثال: /settime morning 06:30")
-        return
-
-    setting_type = context.args[0]
-    value = context.args[1]
-
-    valid_keys = {
-        "morning": "morning_time",
-        "evening": "evening_time",
-        "ayah": "ayat_interval",
-        "dua": "dua_interval"
-    }
-
-    if setting_type not in valid_keys:
-        update.message.reply_text("❌ الأنواع المتاحة: morning, evening, ayah, dua")
-        return
-
-    key = valid_keys[setting_type]
-
-    try:
-        if "time" in key:
-            datetime.strptime(value, "%H:%M")
-        else:
-            value = int(value)
+        update.message.reply_text("✅ تم تحديث التوقيتات بنجاح.")
     except:
-        update.message.reply_text("❌ قيمة غير صحيحة.")
-        return
+        update.message.reply_text("❌ صيغة الأمر خاطئة. استخدم مثلًا:
+/settime 06:00 18:00")
 
-    settings[key] = value
-    save_settings(settings)
-    reschedule_jobs(context.job_queue)
-
-    update.message.reply_text(f"✅ تم تحديث {setting_type} إلى {value}")
-
-def prayer(update: Update, context: CallbackContext):
-    msg = "🕌 مواقيت الصلاة في الإسكندرية:\n\n"
-    for name, time_ in prayer_times.items():
-        msg += f"{name}: {time_}\n"
-    update.message.reply_text(msg)
 
 def main():
     updater = Updater(BOT_TOKEN)
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("activate", activate))
-    dp.add_handler(CommandHandler("deactivate", deactivate))
-    dp.add_handler(CommandHandler("status", status))
-    dp.add_handler(CommandHandler("settime", set_time))
-    dp.add_handler(CommandHandler("prayer", prayer))
+    dp.add_handler(CommandHandler("settime", settime))
+    dp.add_handler(CommandHandler("duaa", duaa))
+    dp.add_handler(CommandHandler("verse", verse))
+
+    scheduler.start()
+    reschedule_jobs(updater.job_queue)
 
     updater.start_polling()
     updater.idle()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
