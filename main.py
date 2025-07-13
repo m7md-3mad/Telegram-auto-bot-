@@ -1,13 +1,12 @@
 import json
 import os
 import random
-from datetime import datetime
+from datetime import datetime, time
 import pytz
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
-from apscheduler.schedulers.background import BackgroundScheduler
 
-BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
+BOT_TOKEN = "ضع_توكن_البوت_هنا"
 CHAT_ID = "-1002470716958"  # قناة أو جروب البوت
 ADMIN_ID = 1438736069  # فقط هذا المستخدم يقدر يغير الإعدادات
 SETTINGS_FILE = "settings.json"
@@ -25,8 +24,8 @@ default_settings = {
     "morning_time": "06:00",
     "evening_time": "18:00",
     "friday_reminder_time": "11:00",
-    "ayat_interval": 60,
-    "dua_interval": 120
+    "ayat_interval": 180,
+    "dua_interval": 240
 }
 
 # الأذكار
@@ -48,7 +47,6 @@ def load_settings():
         return default_settings
 
 settings = load_settings()
-scheduler = BackgroundScheduler()
 
 # إرسال رسالة مع صورة
 def send_with_image(context: CallbackContext, text: str):
@@ -64,6 +62,7 @@ def send_evening(context: CallbackContext):
         send_with_image(context, f"🌙 {z}")
 
 def send_friday(context: CallbackContext):
+    # التأكد أن اليوم هو الجمعة
     if datetime.now(timezone).weekday() == 4:
         send_with_image(context, "📿 لا تنسَ سورة الكهف والصلاة على النبي ﷺ")
 
@@ -76,18 +75,25 @@ def send_duaa(context: CallbackContext):
     send_with_image(context, f"🤲 دعاء:\n{dua}")
 
 def reschedule_jobs(job_queue):
-    scheduler.remove_all_jobs()
+    # إزالة الوظائف القديمة
+    for job in job_queue.get_jobs():
+        job.schedule_removal()
+
+    # جدولة الأذكار الصباحية
     h, m = map(int, settings["morning_time"].split(":"))
-    scheduler.add_job(send_morning, 'cron', hour=h, minute=m, timezone=timezone)
+    job_queue.run_daily(send_morning, time=time(hour=h, minute=m, tzinfo=timezone))
 
+    # جدولة الأذكار المسائية
     h, m = map(int, settings["evening_time"].split(":"))
-    scheduler.add_job(send_evening, 'cron', hour=h, minute=m, timezone=timezone)
+    job_queue.run_daily(send_evening, time=time(hour=h, minute=m, tzinfo=timezone))
 
+    # تذكير الجمعة
     h, m = map(int, settings["friday_reminder_time"].split(":"))
-    scheduler.add_job(send_friday, 'cron', day_of_week='fri', hour=h, minute=m, timezone=timezone)
+    job_queue.run_daily(send_friday, time=time(hour=h, minute=m, tzinfo=timezone), days=(4,))  # 4=Friday
 
-    job_queue.run_repeating(send_ayat, interval=settings["ayat_interval"]*60, first=10)
-    job_queue.run_repeating(send_duaa, interval=settings["dua_interval"]*60, first=20)
+    # جدولة الآيات والدعاء بالتكرار حسب الفترات
+    job_queue.run_repeating(send_ayat, interval=settings["ayat_interval"] * 60, first=10)
+    job_queue.run_repeating(send_duaa, interval=settings["dua_interval"] * 60, first=20)
 
 def start(update: Update, context: CallbackContext):
     update.message.reply_text("أهلاً بك في بوت الأذكار. استخدم /settime أو /duaa أو /verse")
@@ -108,8 +114,10 @@ def settime(update: Update, context: CallbackContext):
         if len(args) != 2:
             raise ValueError
 
+        # تحديث التوقيتات
         settings["morning_time"] = args[0]
         settings["evening_time"] = args[1]
+
         with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump(settings, f, ensure_ascii=False)
 
@@ -127,7 +135,7 @@ def main():
     dp.add_handler(CommandHandler("duaa", duaa))
     dp.add_handler(CommandHandler("verse", verse))
 
-    scheduler.start()
+    # جدولة الوظائف
     reschedule_jobs(updater.job_queue)
 
     updater.start_polling()
