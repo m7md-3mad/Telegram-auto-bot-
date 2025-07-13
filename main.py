@@ -4,7 +4,7 @@ from datetime import time, datetime
 from telegram.ext import Updater, CommandHandler, CallbackContext
 from telegram import Update
 
-BOT_TOKEN = "ضع_توكن_البوت_هنا"
+BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
 CHAT_ID = "-1002470716958"  # ID القناة أو الجروب
 SETTINGS_FILE = "settings.json"
 
