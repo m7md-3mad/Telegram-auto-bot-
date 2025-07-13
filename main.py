@@ -1,7 +1,7 @@
 import json
 import os
 import random
-from datetime import datetime, time
+from datetime import datetime
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -47,37 +47,29 @@ settings = load_settings()
 scheduler = BackgroundScheduler()
 
 # إرسال رسالة مع صورة
-
 def send_with_image(context: CallbackContext, text: str):
     img = random.choice(images)
     context.bot.send_photo(chat_id=CHAT_ID, photo=img, caption=text)
-
 
 def send_morning(context: CallbackContext):
     for z in morning_azkar:
         send_with_image(context, f"🌅 {z}")
 
-
 def send_evening(context: CallbackContext):
     for z in evening_azkar:
         send_with_image(context, f"🌙 {z}")
-
 
 def send_friday(context: CallbackContext):
     if datetime.now().weekday() == 4:
         send_with_image(context, "📿 لا تنسَ سورة الكهف والصلاة على النبي ﷺ")
 
-
 def send_ayat(context: CallbackContext):
     verse = random.choice(ayat)
-    send_with_image(context, f"📖 آية:\n{verse}")
-
+    send_with_image(context, f"📖 آية: {verse}")
 
 def send_duaa(context: CallbackContext):
     dua = random.choice(duaas)
-    send_with_image(context, f"🤲 دعاء:
-{dua}")
-
+    send_with_image(context, f"🤲 دعاء: {dua}")
 
 def reschedule_jobs(job_queue):
     scheduler.remove_all_jobs()
@@ -93,18 +85,14 @@ def reschedule_jobs(job_queue):
     job_queue.run_repeating(send_ayat, interval=settings["ayat_interval"]*60, first=10)
     job_queue.run_repeating(send_duaa, interval=settings["dua_interval"]*60, first=20)
 
-
 def start(update: Update, context: CallbackContext):
     update.message.reply_text("أهلاً بك في بوت الأذكار. استخدم /settime أو /duaa أو /verse")
-
 
 def duaa(update: Update, context: CallbackContext):
     send_duaa(context)
 
-
 def verse(update: Update, context: CallbackContext):
     send_ayat(context)
-
 
 def settime(update: Update, context: CallbackContext):
     if update.effective_user.id != ADMIN_ID:
@@ -124,9 +112,7 @@ def settime(update: Update, context: CallbackContext):
         reschedule_jobs(context.job_queue)
         update.message.reply_text("✅ تم تحديث التوقيتات بنجاح.")
     except:
-        update.message.reply_text("❌ صيغة الأمر خاطئة. استخدم مثلًا:
-/settime 06:00 18:00")
-
+        update.message.reply_text("❌ صيغة الأمر خاطئة. استخدم مثلًا:\n/settime 06:00 18:00")
 
 def main():
     updater = Updater(BOT_TOKEN)
