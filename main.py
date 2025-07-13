@@ -97,7 +97,13 @@ def start(update: Update, context: CallbackContext):
     )
 
 def activate(update: Update, context: CallbackContext):
+    # إيقاف الـ job queue وإعادة تشغيله قبل جدولة جديدة
+    context.job_queue.stop()
+    context.job_queue.scheduler.remove_all_jobs()
+    context.job_queue.start()
+
     reschedule_jobs(context.job_queue)
+    
     update.message.reply_text("✅ تم تفعيل الإرسال التلقائي.")
 
 def deactivate(update: Update, context: CallbackContext):
