@@ -152,7 +152,6 @@ def status(update, context):
     )
     update.message.reply_text(msg, parse_mode="Markdown")
 
-# تشغيل البوت
 def main():
     updater = Updater(BOT_TOKEN)
     dp = updater.dispatcher
