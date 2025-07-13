@@ -46,53 +46,53 @@ def load_settings():
 settings = load_settings()
 scheduler = BackgroundScheduler(timezone=timezone)
 
-def send_with_image(context: CallbackContext, text: str):
+def send_with_image(bot, text: str):
     img = random.choice(images)
-    context.bot.send_photo(chat_id=CHAT_ID, photo=img, caption=text)
+    bot.send_photo(chat_id=CHAT_ID, photo=img, caption=text)
 
-def send_morning(context: CallbackContext):
+def send_morning(bot):
     for z in morning_azkar:
-        send_with_image(context, f"🌅 {z}")
+        send_with_image(bot, f"🌅 {z}")
 
-def send_evening(context: CallbackContext):
+def send_evening(bot):
     for z in evening_azkar:
-        send_with_image(context, f"🌙 {z}")
+        send_with_image(bot, f"🌙 {z}")
 
-def send_friday(context: CallbackContext):
+def send_friday(bot):
     if datetime.now(timezone).weekday() == 4:
-        send_with_image(context, "📿 لا تنسَ سورة الكهف والصلاة على النبي ﷺ")
+        send_with_image(bot, "📿 لا تنسَ سورة الكهف والصلاة على النبي ﷺ")
 
-def send_ayat(context: CallbackContext):
+def send_ayat(bot):
     verse = random.choice(ayat)
-    send_with_image(context, f"📖 آية:\n{verse}")
+    send_with_image(bot, f"📖 آية:\n{verse}")
 
-def send_duaa(context: CallbackContext):
+def send_duaa(bot):
     dua = random.choice(duaas)
-    send_with_image(context, f"🤲 دعاء:\n{dua}")
+    send_with_image(bot, f"🤲 دعاء:\n{dua}")
 
-def reschedule_jobs(updater):
+def reschedule_jobs(bot):
     scheduler.remove_all_jobs()
-    
+
     h, m = map(int, settings["morning_time"].split(":"))
-    scheduler.add_job(send_morning, 'cron', hour=h, minute=m, args=[updater.bot])
+    scheduler.add_job(send_morning, 'cron', hour=h, minute=m, args=[bot], misfire_grace_time=300)
 
     h, m = map(int, settings["evening_time"].split(":"))
-    scheduler.add_job(send_evening, 'cron', hour=h, minute=m, args=[updater.bot])
+    scheduler.add_job(send_evening, 'cron', hour=h, minute=m, args=[bot], misfire_grace_time=300)
 
     h, m = map(int, settings["friday_reminder_time"].split(":"))
-    scheduler.add_job(send_friday, 'cron', day_of_week='fri', hour=h, minute=m, args=[updater.bot])
+    scheduler.add_job(send_friday, 'cron', day_of_week='fri', hour=h, minute=m, args=[bot], misfire_grace_time=300)
 
-    scheduler.add_job(send_ayat, 'interval', minutes=settings["ayat_interval"], args=[updater.bot], next_run_time=datetime.now())
-    scheduler.add_job(send_duaa, 'interval', minutes=settings["dua_interval"], args=[updater.bot], next_run_time=datetime.now())
+    scheduler.add_job(send_ayat, 'interval', minutes=settings["ayat_interval"], args=[bot], next_run_time=datetime.now(timezone), misfire_grace_time=300)
+    scheduler.add_job(send_duaa, 'interval', minutes=settings["dua_interval"], args=[bot], next_run_time=datetime.now(timezone), misfire_grace_time=300)
 
 def start(update: Update, context: CallbackContext):
     update.message.reply_text("أهلاً بك في بوت الأذكار. استخدم /settime أو /duaa أو /verse")
 
 def duaa(update: Update, context: CallbackContext):
-    send_duaa(context)
+    send_duaa(context.bot)
 
 def verse(update: Update, context: CallbackContext):
-    send_ayat(context)
+    send_ayat(context.bot)
 
 def settime(update: Update, context: CallbackContext):
     if update.effective_user.id != ADMIN_ID:
@@ -124,7 +124,7 @@ def main():
     dp.add_handler(CommandHandler("verse", verse))
 
     scheduler.start()
-    reschedule_jobs(updater)
+    reschedule_jobs(updater.bot)
 
     updater.start_polling()
     updater.idle()
