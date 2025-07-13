@@ -88,6 +88,8 @@ def reschedule_jobs(job_queue):
     job_queue.run_repeating(send_ayat, interval=settings["ayat_interval"]*60, first=10)
     job_queue.run_repeating(send_dua, interval=settings["dua_interval"]*60, first=20)
 
+    print("[DEBUG] تم جدولة الوظائف.")
+
 def start(update: Update, context: CallbackContext):
     update.message.reply_text(
         "أهلاً! هذا بوت الأذكار.\n"
@@ -97,14 +99,14 @@ def start(update: Update, context: CallbackContext):
     )
 
 def activate(update: Update, context: CallbackContext):
-    # إيقاف الـ job queue وإعادة تشغيله قبل جدولة جديدة
-    context.job_queue.stop()
-    context.job_queue.scheduler.remove_all_jobs()
-    context.job_queue.start()
-
-    reschedule_jobs(context.job_queue)
-    
-    update.message.reply_text("✅ تم تفعيل الإرسال التلقائي.")
+    try:
+        context.job_queue.scheduler.remove_all_jobs()
+        reschedule_jobs(context.job_queue)
+        update.message.reply_text("✅ تم تفعيل الإرسال التلقائي.")
+        context.bot.send_message(chat_id=CHAT_ID, text="🟢 تم تفعيل الإرسال التلقائي بنجاح ✅")
+    except Exception as e:
+        update.message.reply_text("❌ حدث خطأ أثناء التفعيل.")
+        print(f"[Activate Error]: {e}")
 
 def deactivate(update: Update, context: CallbackContext):
     context.job_queue.scheduler.remove_all_jobs()
@@ -121,7 +123,7 @@ def status(update: Update, context: CallbackContext):
     update.message.reply_text(msg)
 
 def main():
-    updater = Updater(BOT_TOKEN)
+    updater = Updater(BOT_TOKEN, use_context=True)
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
