@@ -89,7 +89,6 @@ def main():
     scheduler.add_job(send_message, 'cron', hour=4, minute=25, args=[bot, MORNING_AZKAR])
     scheduler.add_job(send_message, 'cron', hour=20, minute=6, args=[bot, EVENING_AZKAR])
     scheduler.add_job(send_message, 'cron', day_of_week='fri', hour=7, minute=0, args=[bot, FRIDAY_REMINDER])
-    scheduler.add_job(send_test, 'interval', minutes=1, args=[bot])  # ذكر تجريبي
 
     scheduler.start()
 
