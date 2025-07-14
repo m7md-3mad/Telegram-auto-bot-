@@ -1,125 +1,88 @@
 import logging
-import random
-import json
-from datetime import datetime, time
-from pytz import timezone
-from telegram import Update, InputMediaPhoto
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
 from apscheduler.schedulers.background import BackgroundScheduler
+import pytz
 
-BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
-ADMIN_ID = 1438736069
-TIMEZONE = timezone("Africa/Cairo")
-
-# البيانات
-morning_azkar = ["أذكار الصباح 1", "أذكار الصباح 2"]
-evening_azkar = ["أذكار المساء 1", "أذكار المساء 2"]
-ayahs = ["وَقُل رَّبِّ زِدْنِي عِلْمًا", "إِنَّ مَعَ الْعُسْرِ يُسْرًا"]
-duas = ["اللهم اجعل القرآن ربيع قلوبنا", "اللهم اجعلنا من الذاكرين"]
-friday_reminders = ["🌙 لا تنسَ سورة الكهف", "🕌 صلّ على النبي 💌"]
-
-images = [
-    "https://i.imgur.com/abc1.jpg",
-    "https://i.imgur.com/abc2.jpg",
-    "https://i.imgur.com/abc3.jpg"
-]
-
-# الإعدادات الافتراضية
-user_settings = {
-    "morning_time": "08:00",
-    "evening_time": "17:00"
-}
-
-# اللوج
+# إعدادات اللوج
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# جدولة
-scheduler = BackgroundScheduler(timezone=TIMEZONE)
+# التوكن الخاص بالبوت
+BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
 
-def send_with_image(context: CallbackContext, text: str):
-    chat_id = context.job.context
-    photo_url = random.choice(images)
-    context.bot.send_photo(chat_id=chat_id, photo=photo_url, caption=text)
+# أذكار الصباح
+MORNING_AZKAR = """
+📿 أذكار الصباح:
 
-def send_morning(context: CallbackContext):
-    text = f"🌅 {random.choice(morning_azkar)}"
-    send_with_image(context, text)
+1. بِسـمِ اللهِ الذي لا يَضُـرُّ مَعَ اسمِـهِ شَيءٌ في الأرْضِ وَلا في السّمـاءِ وَهـوَ السّمـيعُ العَلـيم. ×3
+2. رَضيـتُ بِاللهِ رَبَّـاً وَبِالإسْلامِ ديـناً وَبِمُحَـمَّدٍ صلى الله عليه وسلم نَبِيّـاً.  ×3
+3. سُبْحـانَ اللهِ وَبِحَمْـدِهِ عَدَدَ خَلْـقِه ، وَرِضـا نَفْسِـه ، وَزِنَـةَ عَـرْشِـه ، وَمِـدادَ كَلِمـاتِـه.
+4. اللّهُـمَّ إِنِّـي أَصْبَـحْتُ أُشْـهِدُك ، وَأُشْـهِدُ حَمَلَـةَ عَـرْشِـك ، وَمَلَائِكَتَكَ ، وَجَمـيعَ خَلْـقِك ، أَنَّـكَ أَنْـتَ اللهُ لا إلهَ إلاّ أَنْـتَ وَحْـدَكَ لا شَريكَ لَـك ، وَأَنَّ مُحَمّـداً عَبْـدُكَ وَرَسـولُـك.
+"""
 
-def send_evening(context: CallbackContext):
-    text = f"🌇 {random.choice(evening_azkar)}"
-    send_with_image(context, text)
+# أذكار المساء
+EVENING_AZKAR = """
+📿 أذكار المساء:
 
-def send_ayah(context: CallbackContext):
-    text = f"📖 آية:\n{random.choice(ayahs)}"
-    send_with_image(context, text)
+1. رَضيـتُ بِاللهِ رَبَّـاً وَبِالإسْلامِ ديـناً وَبِمُحَـمَّدٍ صلى الله عليه وسلم نَبِيّـاً و رسولا . ×3
+2. اللّهُـمَّ ما أَمسى بي مِـنْ نِعْـمَةٍ أَو بِأَحَـدٍ مِـنْ خَلْـقِك ، فَمِـنْكَ وَحْـدَكَ لا شريكَ لَـك ، فَلَـكَ الْحَمْـدُ وَلَـكَ الشُّكْـر.
+3. يَا حَيُّ يَا قيُّومُ بِرَحْمَتِكَ أسْتَغِيثُ أصْلِحْ لِي شَأنِي كُلَّهُ وَلاَ تَكِلْنِي إلَى نَفْسِي طَـرْفَةَ عَيْنٍ.
+4. اللّهُـمَّ عافِـني في بَدَنـي ، اللّهُـمَّ عافِـني في سَمْـعي ، اللّهُـمَّ عافِـني في بَصَـري ، لا إلهَ إلاّ أَنْـتَ.
+5. أَعـوذُ بِكَلِمـاتِ اللّهِ التّـامّـاتِ مِنْ شَـرِّ ما خَلَـق.
+"""
 
-def send_dua(context: CallbackContext):
-    text = f"🕊️ دعاء:\n{random.choice(duas)}"
-    send_with_image(context, text)
+# أذكار الجمعة
+FRIDAY_AZKAR = """
+🔹🔸يوم الجمعة🔸🔹
 
-def send_friday_reminder(context: CallbackContext):
-    today = datetime.now(TIMEZONE).strftime("%A")
-    if today == "Friday":
-        text = f"🌟 تذكير الجمعة:\n{random.choice(friday_reminders)}"
-        send_with_image(context, text)
+﴿ يا أَيُّهَا الَّذِينَ آمَنُوا إِذَا نُودِيَ لِلصَّلَاةِ مِنْ يَوْمِ الْجُمُعَةِ فَاسْعَوْا إِلَى ذِكْرِ اللَّهِ وَذَرُوا الْبَيْعَ ذَلِكُمْ خَيْرٌ لَكُمْ إِنْ كُنْتُمْ تَعْلَمُونَ ﴾ [الجمعة:9]
 
-# أوامر البوت
+قال رسول الله ﷺ :  
+(خَيْرُ يَوْمٍ طَلَعَتْ عَلَيْهِ الشَّمْسُ يَوْمُ الْجُمُعَةِ، فِيهِ خُلِقَ آدَمُ، وَفِيهِ أُدْخِلَ الْجَنَّةَ، وَفِيهِ أُخْرِجَ مِنْهَا). رواه مسلم
+
+**سنن الجمعة**
+1- الاغتسال  
+2- التطيب  
+3- التبكير إلى المسجد  
+4- تحرى ساعة الإجابة  
+5- لبس أحسن الثياب  
+6- كثرة الصلاة على النبى صلى الله عليه وسلم  
+7- قراءة سورة الكهف  
+8- التسوك
+"""
+
+# متغير لتخزين chat_id
+chat_id = None
+
+# دالة إرسال الأذكار
+def send_azkar(context: CallbackContext, message: str):
+    global chat_id
+    if chat_id:
+        context.bot.send_message(chat_id=chat_id, text=message)
+
+# أمر /start
 def start(update: Update, context: CallbackContext):
-    update.message.reply_text("🤖 أهلاً بك! استخدم /activate لتشغيل التذكيرات.")
-
-def activate(update: Update, context: CallbackContext):
+    global chat_id
     chat_id = update.effective_chat.id
-    try:
-        morning_time = datetime.strptime(user_settings["morning_time"], "%H:%M").time()
-        evening_time = datetime.strptime(user_settings["evening_time"], "%H:%M").time()
-
-        scheduler.add_job(send_morning, 'cron', hour=morning_time.hour, minute=morning_time.minute, context=chat_id)
-        scheduler.add_job(send_evening, 'cron', hour=evening_time.hour, minute=evening_time.minute, context=chat_id)
-        scheduler.add_job(send_ayah, 'interval', hours=8, context=chat_id)
-        scheduler.add_job(send_dua, 'interval', hours=12, context=chat_id)
-        scheduler.add_job(send_friday_reminder, 'cron', day_of_week='fri', hour=9, context=chat_id)
-
-        update.message.reply_text("✅ تم تفعيل التذكيرات.")
-    except Exception as e:
-        logger.error(f"[Activate Error]: {e}")
-        update.message.reply_text("حدث خطأ أثناء التفعيل.")
-
-def set_time(update: Update, context: CallbackContext):
-    if update.effective_user.id != ADMIN_ID:
-        update.message.reply_text("❌ الأمر للمشرف فقط.")
-        return
-
-    try:
-        part = context.args[0].lower()
-        value = context.args[1]
-        datetime.strptime(value, "%H:%M")  # تأكد من التنسيق
-        if part == "morning":
-            user_settings["morning_time"] = value
-        elif part == "evening":
-            user_settings["evening_time"] = value
-        else:
-            update.message.reply_text("استخدم: /settime morning 08:00 أو evening 18:00")
-            return
-        update.message.reply_text(f"⏰ تم تحديث توقيت {part} إلى {value}")
-    except:
-        update.message.reply_text("❌ خطأ في التنسيق. استخدم /settime morning 08:00")
-
-def prayer(update: Update, context: CallbackContext):
-    update.message.reply_text("🕌 مواقيت الصلاة:\nالفجر: 03:30\nالظهر: 12:00\nالعصر: 15:30\nالمغرب: 18:45\nالعشاء: 20:00")
+    update.message.reply_text("📿 تم تفعيل إرسال الأذكار اليومية. سيتم إرسال أذكار الصباح والمساء والجمعة تلقائيًا.")
 
 def main():
     updater = Updater(BOT_TOKEN)
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("activate", activate))
-    dp.add_handler(CommandHandler("settime", set_time))
-    dp.add_handler(CommandHandler("prayer", prayer))
+
+    tz = pytz.timezone("Africa/Cairo")
+    scheduler = BackgroundScheduler(timezone=tz)
+    scheduler.add_job(send_azkar, 'cron', hour=4, minute=25, args=[updater.bot, MORNING_AZKAR])
+    scheduler.add_job(send_azkar, 'cron', hour=20, minute=6, args=[updater.bot, EVENING_AZKAR])
+    scheduler.add_job(send_azkar, 'cron', day_of_week='fri', hour=7, minute=0, args=[updater.bot, FRIDAY_AZKAR])
 
     scheduler.start()
+
     updater.start_polling()
     updater.idle()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
