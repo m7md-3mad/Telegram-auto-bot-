@@ -1,17 +1,18 @@
 import logging
-from telegram import Update
+from telegram import Update, BotCommand
 from telegram.ext import Updater, CommandHandler, CallbackContext
 from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime
 import pytz
 
-# إعدادات اللوج
+# إعداد اللوج
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# التوكن الخاص بالبوت
+# توكن البوت
 BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
 
-# أذكار الصباح
+# نصوص الأذكار
 MORNING_AZKAR = """
 📿 أذكار الصباح:
 
@@ -21,7 +22,6 @@ MORNING_AZKAR = """
 4. اللّهُـمَّ إِنِّـي أَصْبَـحْتُ أُشْـهِدُك ، وَأُشْـهِدُ حَمَلَـةَ عَـرْشِـك ، وَمَلَائِكَتَكَ ، وَجَمـيعَ خَلْـقِك ، أَنَّـكَ أَنْـتَ اللهُ لا إلهَ إلاّ أَنْـتَ وَحْـدَكَ لا شَريكَ لَـك ، وَأَنَّ مُحَمّـداً عَبْـدُكَ وَرَسـولُـك.
 """
 
-# أذكار المساء
 EVENING_AZKAR = """
 📿 أذكار المساء:
 
@@ -32,53 +32,84 @@ EVENING_AZKAR = """
 5. أَعـوذُ بِكَلِمـاتِ اللّهِ التّـامّـاتِ مِنْ شَـرِّ ما خَلَـق.
 """
 
-# أذكار الجمعة
 FRIDAY_AZKAR = """
 🔹🔸يوم الجمعة🔸🔹
-
 ﴿ يا أَيُّهَا الَّذِينَ آمَنُوا إِذَا نُودِيَ لِلصَّلَاةِ مِنْ يَوْمِ الْجُمُعَةِ فَاسْعَوْا إِلَى ذِكْرِ اللَّهِ وَذَرُوا الْبَيْعَ ذَلِكُمْ خَيْرٌ لَكُمْ إِنْ كُنْتُمْ تَعْلَمُونَ ﴾ [الجمعة:9]
 
-قال رسول الله ﷺ :  
-(خَيْرُ يَوْمٍ طَلَعَتْ عَلَيْهِ الشَّمْسُ يَوْمُ الْجُمُعَةِ، فِيهِ خُلِقَ آدَمُ، وَفِيهِ أُدْخِلَ الْجَنَّةَ، وَفِيهِ أُخْرِجَ مِنْهَا). رواه مسلم
+قال رسول الله ﷺ :
+ (خَيْرُ يَوْمٍ طَلَعَتْ عَلَيْهِ الشَّمْسُ يَوْمُ الْجُمُعَةِ، فِيهِ خُلِقَ آدَمُ، وَفِيهِ أُدْخِلَ الْجَنَّةَ، وَفِيهِ أُخْرِجَ مِنْهَا). رواه مسلم
 
 **سنن الجمعة**
-1- الاغتسال  
-2- التطيب  
-3- التبكير إلى المسجد  
-4- تحرى ساعة الإجابة  
-5- لبس أحسن الثياب  
-6- كثرة الصلاة على النبى صلى الله عليه وسلم  
-7- قراءة سورة الكهف  
+1- الاغتسال
+2- التطيب
+3- التبكير إلى المسجد
+4- تحرى ساعة الإجابة
+5- لبس أحسن الثياب
+6- كثرة الصلاة على النبي صلى الله عليه وسلم
+7- قراءة سورة الكهف
 8- التسوك
 """
 
-# متغير لتخزين chat_id
+# متغير لتخزين الشات آي دي
 chat_id = None
 
-# دالة إرسال الأذكار
-def send_azkar(context: CallbackContext, message: str):
+def send_message(context: CallbackContext, text: str):
     global chat_id
     if chat_id:
-        context.bot.send_message(chat_id=chat_id, text=message)
+        context.bot.send_message(chat_id=chat_id, text=text)
+    else:
+        logger.warning("chat_id غير معرف بعد، لا يمكن إرسال الرسالة")
 
-# أمر /start
 def start(update: Update, context: CallbackContext):
     global chat_id
     chat_id = update.effective_chat.id
-    update.message.reply_text("📿 تم تفعيل إرسال الأذكار اليومية. سيتم إرسال أذكار الصباح والمساء والجمعة تلقائيًا.")
+    update.message.reply_text("📿 تم تفعيل إرسال الأذكار التلقائي، ويمكنك استخدام الأوامر لإرسال الأذكار يدوياً.\n\nاكتب /help لمعرفة الأوامر.")
+
+def send_morning_command(update: Update, context: CallbackContext):
+    update.message.reply_text(MORNING_AZKAR)
+
+def send_evening_command(update: Update, context: CallbackContext):
+    update.message.reply_text(EVENING_AZKAR)
+
+def send_friday_command(update: Update, context: CallbackContext):
+    update.message.reply_text(FRIDAY_AZKAR)
+
+def help_command(update: Update, context: CallbackContext):
+    help_text = """
+أوامر البوت:
+/start - تفعيل البوت وبدء إرسال الأذكار التلقائية
+/morning - إرسال أذكار الصباح الآن
+/evening - إرسال أذكار المساء الآن
+/friday - إرسال أذكار الجمعة الآن
+/help - عرض هذه الرسالة
+"""
+    update.message.reply_text(help_text)
 
 def main():
     updater = Updater(BOT_TOKEN)
     dp = updater.dispatcher
 
-    dp.add_handler(CommandHandler("start", start))
+    # تعيين أوامر البوت لتظهر في قائمة الأوامر بتليجرام
+    updater.bot.set_my_commands([
+        BotCommand("start", "تفعيل البوت وبدء إرسال الأذكار"),
+        BotCommand("morning", "أرسل أذكار الصباح الآن"),
+        BotCommand("evening", "أرسل أذكار المساء الآن"),
+        BotCommand("friday", "أرسل أذكار الجمعة الآن"),
+        BotCommand("help", "عرض أوامر البوت"),
+    ])
 
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("morning", send_morning_command))
+    dp.add_handler(CommandHandler("evening", send_evening_command))
+    dp.add_handler(CommandHandler("friday", send_friday_command))
+    dp.add_handler(CommandHandler("help", help_command))
+
+    # إعداد الجدولة مع توقيت القاهرة
     tz = pytz.timezone("Africa/Cairo")
     scheduler = BackgroundScheduler(timezone=tz)
-    scheduler.add_job(send_azkar, 'cron', hour=4, minute=25, args=[updater.bot, MORNING_AZKAR])
-    scheduler.add_job(send_azkar, 'cron', hour=20, minute=6, args=[updater.bot, EVENING_AZKAR])
-    scheduler.add_job(send_azkar, 'cron', day_of_week='fri', hour=7, minute=0, args=[updater.bot, FRIDAY_AZKAR])
-
+    scheduler.add_job(send_message, 'cron', hour=4, minute=25, args=[updater.bot, MORNING_AZKAR])
+    scheduler.add_job(send_message, 'cron', hour=20, minute=6, args=[updater.bot, EVENING_AZKAR])
+    scheduler.add_job(send_message, 'cron', day_of_week='fri', hour=7, minute=0, args=[updater.bot, FRIDAY_AZKAR])
     scheduler.start()
 
     updater.start_polling()
