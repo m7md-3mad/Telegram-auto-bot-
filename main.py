@@ -7,7 +7,7 @@ from telegram import Update, InputMediaPhoto
 from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
 from apscheduler.schedulers.background import BackgroundScheduler
 
-BOT_TOKEN = "ضع_التوكن_هنا"
+BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
 ADMIN_ID = 1438736069
 TIMEZONE = timezone("Africa/Cairo")
 
