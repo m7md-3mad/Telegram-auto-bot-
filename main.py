@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # توكن البوت
-BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
+BOT_TOKEN = "7674655190:AAGuHfCmf3VX0qFXqUZi4eZOEgos_UnjjKY"
 
 # نصوص الأذكار
 MORNING_AZKAR = """
