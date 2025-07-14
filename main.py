@@ -1,133 +1,125 @@
-import json
-import os
+import logging
 import random
-from datetime import datetime
-import pytz
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
+import json
+from datetime import datetime, time
+from pytz import timezone
+from telegram import Update, InputMediaPhoto
+from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
 from apscheduler.schedulers.background import BackgroundScheduler
 
-BOT_TOKEN = "7674655190:AAHGQbac6F9ecwtp7fP0DK5B3_38cs0Jv1M"
-CHAT_ID = "-1002470716958"
+BOT_TOKEN = "ضع_التوكن_هنا"
 ADMIN_ID = 1438736069
-SETTINGS_FILE = "settings.json"
+TIMEZONE = timezone("Africa/Cairo")
+
+# البيانات
+morning_azkar = ["أذكار الصباح 1", "أذكار الصباح 2"]
+evening_azkar = ["أذكار المساء 1", "أذكار المساء 2"]
+ayahs = ["وَقُل رَّبِّ زِدْنِي عِلْمًا", "إِنَّ مَعَ الْعُسْرِ يُسْرًا"]
+duas = ["اللهم اجعل القرآن ربيع قلوبنا", "اللهم اجعلنا من الذاكرين"]
+friday_reminders = ["🌙 لا تنسَ سورة الكهف", "🕌 صلّ على النبي 💌"]
 
 images = [
-    "https://i.imgur.com/9QZf5Qb.jpeg",
-    "https://i.imgur.com/CQ5ELcC.jpeg",
-    "https://i.imgur.com/w1u45Bb.jpeg",
-    "https://i.imgur.com/rMBRfaM.jpeg",
+    "https://i.imgur.com/abc1.jpg",
+    "https://i.imgur.com/abc2.jpg",
+    "https://i.imgur.com/abc3.jpg"
 ]
 
-default_settings = {
-    "morning_time": "06:00",
-    "evening_time": "18:00",
-    "friday_reminder_time": "11:00",
-    "ayat_interval": 60,
-    "dua_interval": 120
+# الإعدادات الافتراضية
+user_settings = {
+    "morning_time": "08:00",
+    "evening_time": "17:00"
 }
 
-morning_azkar = ["سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", "اللَّهُمَّ أَجِرْنِي مِنَ النَّارِ"]
-evening_azkar = ["اللّهُـمَّ أَنْتَ رَبِّي لا إِلَهَ إِلَّا أَنْتَ", "أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ"]
-ayat = ["وَإِنَّكَ لَعَلَىٰ خُلُقٍ عَظِيمٍ", "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ"]
-duaas = ["اللهم إني أسألك العفو والعافية", "اللهم اجعلني من التوابين"]
+# اللوج
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-timezone = pytz.timezone("Africa/Cairo")
+# جدولة
+scheduler = BackgroundScheduler(timezone=TIMEZONE)
 
-def load_settings():
-    if os.path.exists(SETTINGS_FILE):
-        with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    else:
-        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(default_settings, f, ensure_ascii=False)
-        return default_settings
+def send_with_image(context: CallbackContext, text: str):
+    chat_id = context.job.context
+    photo_url = random.choice(images)
+    context.bot.send_photo(chat_id=chat_id, photo=photo_url, caption=text)
 
-settings = load_settings()
-scheduler = BackgroundScheduler(timezone=timezone)
+def send_morning(context: CallbackContext):
+    text = f"🌅 {random.choice(morning_azkar)}"
+    send_with_image(context, text)
 
-def send_with_image(bot, text: str):
-    img = random.choice(images)
-    bot.send_photo(chat_id=CHAT_ID, photo=img, caption=text)
+def send_evening(context: CallbackContext):
+    text = f"🌇 {random.choice(evening_azkar)}"
+    send_with_image(context, text)
 
-def send_morning(bot):
-    for z in morning_azkar:
-        send_with_image(bot, f"🌅 {z}")
+def send_ayah(context: CallbackContext):
+    text = f"📖 آية:\n{random.choice(ayahs)}"
+    send_with_image(context, text)
 
-def send_evening(bot):
-    for z in evening_azkar:
-        send_with_image(bot, f"🌙 {z}")
+def send_dua(context: CallbackContext):
+    text = f"🕊️ دعاء:\n{random.choice(duas)}"
+    send_with_image(context, text)
 
-def send_friday(bot):
-    if datetime.now(timezone).weekday() == 4:
-        send_with_image(bot, "📿 لا تنسَ سورة الكهف والصلاة على النبي ﷺ")
+def send_friday_reminder(context: CallbackContext):
+    today = datetime.now(TIMEZONE).strftime("%A")
+    if today == "Friday":
+        text = f"🌟 تذكير الجمعة:\n{random.choice(friday_reminders)}"
+        send_with_image(context, text)
 
-def send_ayat(bot):
-    verse = random.choice(ayat)
-    send_with_image(bot, f"📖 آية:\n{verse}")
-
-def send_duaa(bot):
-    dua = random.choice(duaas)
-    send_with_image(bot, f"🤲 دعاء:\n{dua}")
-
-def reschedule_jobs(bot):
-    scheduler.remove_all_jobs()
-
-    h, m = map(int, settings["morning_time"].split(":"))
-    scheduler.add_job(send_morning, 'cron', hour=h, minute=m, args=[bot], misfire_grace_time=300)
-
-    h, m = map(int, settings["evening_time"].split(":"))
-    scheduler.add_job(send_evening, 'cron', hour=h, minute=m, args=[bot], misfire_grace_time=300)
-
-    h, m = map(int, settings["friday_reminder_time"].split(":"))
-    scheduler.add_job(send_friday, 'cron', day_of_week='fri', hour=h, minute=m, args=[bot], misfire_grace_time=300)
-
-    scheduler.add_job(send_ayat, 'interval', minutes=settings["ayat_interval"], args=[bot], next_run_time=datetime.now(timezone), misfire_grace_time=300)
-    scheduler.add_job(send_duaa, 'interval', minutes=settings["dua_interval"], args=[bot], next_run_time=datetime.now(timezone), misfire_grace_time=300)
-
+# أوامر البوت
 def start(update: Update, context: CallbackContext):
-    update.message.reply_text("أهلاً بك في بوت الأذكار. استخدم /settime أو /duaa أو /verse")
+    update.message.reply_text("🤖 أهلاً بك! استخدم /activate لتشغيل التذكيرات.")
 
-def duaa(update: Update, context: CallbackContext):
-    send_duaa(context.bot)
+def activate(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    try:
+        morning_time = datetime.strptime(user_settings["morning_time"], "%H:%M").time()
+        evening_time = datetime.strptime(user_settings["evening_time"], "%H:%M").time()
 
-def verse(update: Update, context: CallbackContext):
-    send_ayat(context.bot)
+        scheduler.add_job(send_morning, 'cron', hour=morning_time.hour, minute=morning_time.minute, context=chat_id)
+        scheduler.add_job(send_evening, 'cron', hour=evening_time.hour, minute=evening_time.minute, context=chat_id)
+        scheduler.add_job(send_ayah, 'interval', hours=8, context=chat_id)
+        scheduler.add_job(send_dua, 'interval', hours=12, context=chat_id)
+        scheduler.add_job(send_friday_reminder, 'cron', day_of_week='fri', hour=9, context=chat_id)
 
-def settime(update: Update, context: CallbackContext):
+        update.message.reply_text("✅ تم تفعيل التذكيرات.")
+    except Exception as e:
+        logger.error(f"[Activate Error]: {e}")
+        update.message.reply_text("حدث خطأ أثناء التفعيل.")
+
+def set_time(update: Update, context: CallbackContext):
     if update.effective_user.id != ADMIN_ID:
-        update.message.reply_text("❌ غير مصرح لك باستخدام هذا الأمر.")
+        update.message.reply_text("❌ الأمر للمشرف فقط.")
         return
 
     try:
-        args = context.args
-        if len(args) != 2:
-            raise ValueError
-
-        settings["morning_time"] = args[0]
-        settings["evening_time"] = args[1]
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(settings, f, ensure_ascii=False)
-
-        reschedule_jobs(context.bot)
-        update.message.reply_text("✅ تم تحديث التوقيتات بنجاح.")
+        part = context.args[0].lower()
+        value = context.args[1]
+        datetime.strptime(value, "%H:%M")  # تأكد من التنسيق
+        if part == "morning":
+            user_settings["morning_time"] = value
+        elif part == "evening":
+            user_settings["evening_time"] = value
+        else:
+            update.message.reply_text("استخدم: /settime morning 08:00 أو evening 18:00")
+            return
+        update.message.reply_text(f"⏰ تم تحديث توقيت {part} إلى {value}")
     except:
-        update.message.reply_text("❌ صيغة الأمر خاطئة. استخدم مثلًا:\n/settime 06:00 18:00")
+        update.message.reply_text("❌ خطأ في التنسيق. استخدم /settime morning 08:00")
+
+def prayer(update: Update, context: CallbackContext):
+    update.message.reply_text("🕌 مواقيت الصلاة:\nالفجر: 03:30\nالظهر: 12:00\nالعصر: 15:30\nالمغرب: 18:45\nالعشاء: 20:00")
 
 def main():
     updater = Updater(BOT_TOKEN)
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("settime", settime))
-    dp.add_handler(CommandHandler("duaa", duaa))
-    dp.add_handler(CommandHandler("verse", verse))
+    dp.add_handler(CommandHandler("activate", activate))
+    dp.add_handler(CommandHandler("settime", set_time))
+    dp.add_handler(CommandHandler("prayer", prayer))
 
     scheduler.start()
-    reschedule_jobs(updater.bot)
-
     updater.start_polling()
     updater.idle()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
